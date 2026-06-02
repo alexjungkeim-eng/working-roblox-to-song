@@ -1,32 +1,1060 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<title>Song 1</title>
-<style>
-body{
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin-top: 20px;
-}
-
-video{
-    width: 300px;
-    max-width: 90%;
-}
-</style>
-</head>
-<body>
-
-<h3>Song 1</h3>
-
-<video controls>
-    <source src="music/song1.mp3" type="video/mp4">
-</video>
-
-<br><br>
-
-<a href="index.html">← Zurück</a>
-
-</body>
-</html>
+-- https://lua.expert/
+local t = {}
+local VFX = require(game.ReplicatedStorage.Modules:WaitForChild("VFX"))
+local UniversalTables = require(game.ReplicatedStorage.Modules:WaitForChild("UniversalTables"))
+local FunctionLibraryExtension = require(game.ReplicatedStorage.Modules:WaitForChild("FunctionLibraryExtension"))
+local SoundHandler = require(game.SoundService.SoundSystem.Modules.SoundHandler)
+local ProjectileInflict = game.ReplicatedStorage.Remotes.ProjectileInflict
+local VisualProjectile = game.ReplicatedStorage.Remotes.VisualProjectile
+local FireProjectile = game.ReplicatedStorage.Remotes.FireProjectile
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players_2 = ReplicatedStorage:WaitForChild("Players")
+ReplicatedStorage:WaitForChild("Remotes")
+game.ReplicatedStorage:WaitForChild("Modules")
+local RangedWeapons = ReplicatedStorage:WaitForChild("RangedWeapons")
+ReplicatedStorage:WaitForChild("SFX")
+local VFX_2 = game.ReplicatedStorage:WaitForChild("VFX")
+local Debris = game:GetService("Debris")
+local LocalPlayer = Players.LocalPlayer
+local v1 = Players_2:WaitForChild(LocalPlayer.Name)
+local Temp = game.ReplicatedStorage.Temp
+local RootScanHeight = UniversalTables.UniversalTable.GameSettings.RootScanHeight
+local v2 = UniversalTables.ReturnTable("GlobalIgnoreListProjectile")
+local function isPlayer(p1) --[[ isPlayer | Line: 63 | Upvalues: Players (copy) ]]
+	return Players:FindFirstChild(p1.Name)
+end
+local function getRayClosestPoint(p1, p2) --[[ getRayClosestPoint | Line: 69 ]]
+	local v1 = p1.Origin - p2
+	local Direction = p1.Direction
+	return p2 + (v1 - v1:Dot(Direction) / Direction:Dot(Direction) * Direction)
+end
+local function getAimHeight(p1, p2, p3) --[[ getAimHeight | Line: 78 | Upvalues: FunctionLibraryExtension (copy), LocalPlayer (copy) ]]
+	local p = p1.CFrame.p
+	local v1 = FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+	local v2 = Ray.new(v1, (p3 - v1).Unit * 7500)
+	local v3 = v2.Origin - p2
+	local Direction = v2.Direction
+	return (p2 + (v3 - v3:Dot(Direction) / Direction:Dot(Direction) * Direction)).Y
+end
+local function intersection_point(p1, p2, p3, p4) --[[ intersection_point | Line: 89 ]]
+	local v1 = (p2.Z - p1.Z) / (p2.X - p1.X)
+	local v2 = (p4.Z - p3.Z) / (p4.X - p3.X)
+	local v3 = p1.Z - v1 * p1.X
+	local v4 = (p3.Z - v2 * p3.X - v3) / (v1 - v2)
+	return Vector3.new(v4, p1.Y, v1 * v4 + v3)
+end
+local function Encrypt(p1) --[[ Encrypt | Line: 99 ]]
+	local v1 = ""
+	for i = 1, p1:len() do
+		v1 = v1 .. string.char(p1:sub(i, i):byte() - 5)
+	end
+	return v1
+end
+local function devideNumberSequence(p1, p2) --[[ devideNumberSequence | Line: 110 ]]
+	local Keypoints = p1.Keypoints
+	local v1 = nil
+	local v2 = nil
+	local v3 = nil
+	local v4 = nil
+	for i = 1, #Keypoints do
+		if i == 1 then
+			v1 = NumberSequenceKeypoint.new(Keypoints[i].Time, Keypoints[i].Value * p2)
+			continue
+		end
+		if i == 2 then
+			v2 = NumberSequenceKeypoint.new(Keypoints[i].Time, Keypoints[i].Value * p2)
+			continue
+		end
+		if i == 3 then
+			v3 = NumberSequenceKeypoint.new(Keypoints[i].Time, Keypoints[i].Value * p2)
+			continue
+		end
+		if i == 4 then
+			v4 = NumberSequenceKeypoint.new(Keypoints[i].Time, Keypoints[i].Value * p2)
+		end
+	end
+	return NumberSequence.new({ v1, v2, v3, v4 })
+end
+local function RotCamera(p1, p2, p3, p4, p5, p6) --[[ RotCamera | Line: 140 ]]
+	if p5 then
+		local v2 = math.min(1.5 / math.max(p6, 0), 90)
+		local v3 = tick()
+		local v4 = 0
+		while true do
+			local v5 = v2 * (1 * (tick() - v3) * 60)
+			local v6 = v4 + v5
+			local v7 = if v6 > 90 then 90 else v6
+			if p1.CoordinateFrame.lookVector.Y > 0.98 then
+				return
+			end
+			p1.CoordinateFrame = p1.CoordinateFrame * CFrame.Angles(p2 / (90 / v5), p3 / (90 / v5), p4 / (90 / v5))
+			if v7 == 90 then
+				return
+			end
+			local v8 = tick()
+			game:GetService("RunService").Stepped:wait()
+			v3, v4 = v8, v7
+		end
+	else
+		p1.CoordinateFrame = p1.CoordinateFrame * CFrame.Angles(p2, p3, p4)
+	end
+end
+function RecoilCamera(p1, p2, p3, p4, p5) --[[ RecoilCamera | Line: 163 | Upvalues: RotCamera (copy) ]]
+	local CurrentCamera = workspace.CurrentCamera
+	local v1 = p2 * 0.004 / 3
+	local v2 = p3 * 0.004 / 3
+	local v3, v4
+	if p1 then
+		v3 = p1.y.Value * v1 * 2
+		v4 = p1.x.Value * v2 * 2
+	else
+		v3 = 0
+		v4 = 0
+	end
+	coroutine.wrap(function() --[[ Line: 182 | Upvalues: RotCamera (ref), CurrentCamera (copy), v3 (ref), v4 (ref) ]]
+		RotCamera(CurrentCamera, v3, v4, 0, true, 0.06)
+	end)()
+end
+local _, v3
+if not ... then
+	_ = function(p1_2, p2_2, p3_2, p4_2, p5_2) --[[ bounceVelocity | Line: 264 ]]
+		local Unit = p2_2.Unit
+		local v1 = p1_2:Dot(Unit)
+		local v2 = Unit * v1
+		if v1 >= 0 then
+			return p1_2
+		end
+		local v4 = -v2 * p3_2 + (p1_2 - v2) * math.clamp(1 - p4_2, 0, 1)
+		if v4.Magnitude < p5_2 then
+			return Vector3.new(0, 0, 0)
+		else
+			return v4
+		end
+	end
+	v3 = function(p1_2, p2_2, p3_2) --[[ willRicochet | Line: 299 ]]
+		if p1_2.Magnitude < 1e-6 then
+			return false
+		end
+		local v5 = math.deg((math.acos((math.clamp(math.abs((p1_2.Unit:Dot(p2_2.Unit))), -1, 1)))))
+		local v6
+		if p3_2 == Enum.Material.Metal then
+			v6 = 65
+		elseif p3_2 == Enum.Material.Asphalt or (p3_2 == Enum.Material.Rock or (p3_2 == Enum.Material.Slate or (p3_2 == Enum.Material.Basalt or p3_2 == Enum.Material.Concrete))) then
+			v6 = 70
+		else
+			if p3_2 ~= Enum.Material.Ice and p3_2 ~= Enum.Material.Glacier then
+				return false
+			end
+			v6 = 71
+		end
+		local v7 = 89
+		if v5 < v6 then
+			return false
+		end
+		if v7 <= v5 then
+			return true
+		end
+		local v8 = math.clamp((v5 - v6) / (v7 - v6), 0, 1)
+		local v10 = math.clamp((p1_2.Magnitude - 80) / 220, 0, 1)
+		return math.random() < v8 * v8 * (3 - v8 * 2) * v10
+	end
+	function t.CreateBullet(p1_2, p2_2, p3_2, p4_2, p5_2, p6_2, p7_2, p8_2, p9_2) --[[ CreateBullet | Line: 359 | Upvalues: LocalPlayer (copy), RangedWeapons (copy), ReplicatedStorage (copy), v1 (copy), SoundHandler (copy), VFX_2 (copy), Debris (copy), devideNumberSequence (copy), v2 (copy), FunctionLibraryExtension (copy), FireProjectile (copy), VisualProjectile (copy), VFX (copy), v3 (copy), ProjectileInflict (copy), RunService (copy) ]]
+		local Character = LocalPlayer.Character
+		local HumanoidRootPart = Character.HumanoidRootPart
+		local CurrentCamera = workspace.CurrentCamera
+		if not Character:FindFirstChild(p2_2.Name) then
+			return
+		end
+		local v12
+		if p4_2.Item.Attachments:FindFirstChild("Front") then
+			v12 = p4_2.Item.Attachments.Front.Barrel
+			local Barrel = p3_2.Attachments.Front.Barrel
+		else
+			v12 = p4_2.Item.Barrel
+			local Barrel = p3_2.Barrel
+		end
+		local ItemRoot = p3_2.ItemRoot
+		local v22 = RangedWeapons:FindFirstChild(p2_2.Name)
+		local v32 = nil
+		local v4 = p2_2:GetAttribute("Skin")
+		if v4 then
+			local v5 = ReplicatedStorage.Skins:FindFirstChild(p2_2.Name):FindFirstChild(v4)
+			if v5 then
+				v32 = v5:FindFirstChild("SpecialProperties")
+			end
+		end
+		local v6 = v1.Status.GameplayVariables:GetAttribute("EquipId")
+		local v7 = ReplicatedStorage.AmmoTypes:FindFirstChild(p7_2)
+		local v8 = v32 and v32:GetAttribute("TracerColor") or v22:GetAttribute("ProjectileColor")
+		v22:GetAttribute("BulletMaterial")
+		local v9 = v22:GetAttribute("MuzzleEffect")
+		local v10 = v7:GetAttribute("MuzzleVelocity")
+		local v11 = v7:GetAttribute("Tracer")
+		v22:GetAttribute("RecoilRecoveryTimeMod")
+		v22:GetAttribute("ZeroDistance")
+		local v122 = v7:GetAttribute("AccuracyDeviation")
+		local v13_2 = v7:GetAttribute("Pellets")
+		local v14 = v7:GetAttribute("Damage")
+		local v15 = v7:GetAttribute("ArmorPen")
+		local v16 = v15
+		if v13_2 and (v13_2 > 1 and (not v122 or v122 <= 0)) then
+			v122 = 50
+		end
+		local v17
+		if p9_2 and v22:FindFirstChild("RecoilPattern") then
+			local _ = #v22.RecoilPattern:GetChildren()
+			v17 = if p9_2 == 1 then {
+	x = {
+		Value = v22.RecoilPattern["1"].x.Value
+	},
+	y = {
+		Value = v22.RecoilPattern["1"].y.Value
+	}
+} else v22.RecoilPattern:FindFirstChild((tostring(p9_2)))
+		else
+			v17 = {
+				x = {
+					Value = math.random(-5, 5) * 0.01
+				},
+				y = {
+					Value = math.random(5, 10) * 0.01
+				}
+			}
+		end
+		local v19 = if v1.Status.GameplayVariables:GetAttribute("Stance") == "Crouching" then true else false
+		local v20 = p2_2.Value.ItemProperties.Tool:GetAttribute("MuzzleDevice") or "Default"
+		local v21 = v7:GetAttribute("RecoilStrength") * (HumanoidRootPart:GetAttribute("Recoil") or 1)
+		local sum_2 = v19 and v21 * 0.9 or v21
+		local sum_2_2 = v19 and v21 * 0.9 or v21
+		if p2_2.Value.ItemProperties.Tool:GetAttribute("Recoil") then
+			sum_2 = sum_2 + p2_2.Value.ItemProperties.Tool:GetAttribute("Recoil")
+			sum_2_2 = sum_2_2 + p2_2.Value.ItemProperties.Tool:GetAttribute("Recoil")
+		end
+		local Attachments = p2_2:FindFirstChild("Attachments")
+		if Attachments then
+			local v222 = Attachments:GetChildren()
+			for i = 1, #v222 do
+				local v23_2 = v222[i]
+				if v23_2 and (v23_2.Value.ItemProperties:FindFirstChild("Attachment") and (not v23_2:GetAttribute("Durability") or v23_2:GetAttribute("Durability") > 0)) then
+					local Attachment = v23_2.Value.ItemProperties.Attachment
+					local v24 = Attachment:GetAttribute("Recoil")
+					if v24 then
+						sum_2 = sum_2 + v24 * Attachment:GetAttribute("HRecoilMod")
+						sum_2_2 = sum_2_2 + v24 * Attachment:GetAttribute("VRecoilMod")
+					end
+					local v25 = Attachment:GetAttribute("MuzzleDevice")
+					if v25 then
+						if p4_2.Item.Attachments.Muzzle:FindFirstChild("BarrelExtension") then
+							v12 = p4_2.Item.Attachments.Muzzle:FindFirstChild("BarrelExtension")
+							p3_2.Attachments.Muzzle:FindFirstChild("BarrelExtension")
+							v20 = v25
+							continue
+						end
+						v20 = v25
+					end
+				end
+			end
+		end
+		if v20 == "Suppressor" then
+			SoundHandler:Play(ItemRoot.Sounds.FireSoundSupressed, true)
+		else
+			SoundHandler:Play(ItemRoot.Sounds.FireSound, true)
+		end
+		if v9 == true then
+			local v26 = if v32 then v32:GetAttribute("MuzzleEffect") else v32
+			local v27 = v26 and VFX_2.MuzzleEffects.Override:FindFirstChild(v26) or VFX_2.MuzzleEffects
+			local v29 = (v27:FindFirstChild(v20) or VFX_2.MuzzleEffects:FindFirstChild(v20)):GetChildren()
+			local v30 = v29[math.random(1, #v29)]
+			local v31 = v30.Particles:GetChildren()
+			if v30:FindFirstChild("MuzzleLight") then
+				local v322 = v30.MuzzleLight:Clone()
+				local v33_2 = v322.Range + math.random(-2, 2) / 2
+				v322.Range = math.clamp(v33_2, 0, 50)
+				v322.Enabled = true
+				Debris:AddItem(v322, 0.1)
+				v322.Parent = v12
+			end
+			for j = 1, #v31 do
+				if v31[j].className == "ParticleEmitter" then
+					local v34 = v31[j]:Clone()
+					local v35 = v34:GetAttribute("EmitCount") or 1
+					local v36 = math.clamp(v14 / 45 / 2.4, 0, 0.6)
+					if v13_2 then
+						v36 = math.clamp(v14 * v13_2 / 45 / 2.4, 0, 0.6)
+					end
+					local v38 = math.clamp(v36, 1, 10)
+					v34.Lifetime = NumberRange.new(v34.Lifetime.Min * v38, v34.Lifetime.Max * v38)
+					v34.Size = devideNumberSequence(v34.Size, v36)
+					v34.Parent = v12
+					v34:Emit(v35)
+					Debris:AddItem(v34, v34.Lifetime.Max)
+				end
+			end
+		end
+		local p = HumanoidRootPart.CFrame.p
+		local LookVector = p5_2.CFrame.LookVector
+		local v39 = math.clamp(v10 / 2400, 0.7, 1.2)
+		local v40 = 0
+		local v41 = ""
+		local v42_2 = 0
+		local v43 = false
+		local function fireBullet() --[[ fireBullet | Line: 546 | Upvalues: Character (copy), p4_2 (copy), v2 (ref), LookVector (copy), FunctionLibraryExtension (ref), LocalPlayer (ref), v10 (copy), v122 (ref), v40 (ref), v42_2 (ref), v41 (ref), FireProjectile (ref), v6 (copy), VisualProjectile (ref), v13_2 (copy), v43 (ref), v11 (copy), VFX_2 (ref), v8 (copy), Debris (ref), v12 (ref), CurrentCamera (copy), v39 (copy), VFX (ref), v3 (ref), ProjectileInflict (ref), v15 (ref), v16 (copy), RunService (ref) ]]
+			local v1 = RaycastParams.new()
+			v1.FilterType = Enum.RaycastFilterType.Exclude
+			local t2 = { Character, p4_2, v2 }
+			local t2_2 = {}
+			v1.FilterDescendantsInstances = t2
+			v1.IgnoreWater = false
+			v1.CollisionGroup = "WeaponRay"
+			local v22 = tick()
+			local v32 = LookVector
+			local v4 = FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+			local v5 = v10
+			local v62 = false
+			local v7 = Vector3.new()
+			local v82 = 0
+			local v9 = v4 + LookVector * 1000
+			if v122 then
+				local v102 = 6.283185307179586 * math.random()
+				local v112 = math.random(-v122, v122)
+				local v123 = v112 * math.cos(v102)
+				local v132 = v112 * math.sin(v102)
+				v32 = (v9 + Vector3.new(v123, math.random(-v122, v122), v132) - v4).Unit
+			end
+			v40 = v40 + 1
+			if v40 == 1 then
+				v42_2 = math.random(-100000, 100000)
+				v41 = tostring(game.Players.LocalPlayer.UserId)
+				coroutine.wrap(function() --[[ Line: 623 | Upvalues: FireProjectile (ref), v32 (ref), v42_2 (ref), v6 (ref) ]]
+					if FireProjectile:InvokeServer(v32, v42_2, tick()) then
+						return
+					end
+					script.Parent.Binds.AdjustBullets:Fire(v6, 1)
+				end)()
+			elseif v40 > 1 then
+				VisualProjectile:FireServer(v32, v42_2)
+			end
+			if v13_2 then
+				if not v43 and v40 > math.floor(v13_2 * 0.2) then
+					v43 = true
+				end
+			else
+				v43 = true
+			end
+			local v162, v17
+			if v11 then
+				v162 = VFX_2.MuzzleEffects.Tracer:Clone()
+				v162.Name = v41
+				v162.Color = v8
+				Debris:AddItem(v162, 10)
+				v162.Position = Vector3.new(0, -100, 0)
+				v162.Parent = game.Workspace.NoCollision.Effects
+				v17 = v12.Position
+			else
+				v162 = nil
+				v17 = nil
+			end
+			local t3 = {}
+			local v18 = 0
+			local function getFriction(p1_2) --[[ getFriction | Line: 677 ]]
+				return 0.2
+			end
+			local function getRestitution(p1_2) --[[ getRestitution | Line: 681 ]]
+				return 0.31
+			end
+			local v19 = v5 * v32
+			local v20 = nil
+			local v21 = 0
+			local function terminate() --[[ terminate | Line: 689 | Upvalues: v20 (ref), v162 (ref) ]]
+				v20:Disconnect()
+				if not v162 then
+					return
+				end
+				if v162:FindFirstChild("Trail") then
+					task.wait(v162.Trail.Lifetime)
+				end
+				v162:Destroy()
+			end
+			local function onStep(p1_2) --[[ onStep | Line: 700 | Upvalues: v21 (ref), v19 (ref), v4 (ref), v32 (ref), v1 (copy), v162 (ref), CurrentCamera (ref), v39 (ref), v82 (ref), v18 (ref), v17 (ref), t2_2 (copy), FunctionLibraryExtension (ref), t2 (copy), VFX (ref), v62 (ref), v7 (ref), v3 (ref), v20 (ref), v5 (copy), v10 (ref), ProjectileInflict (ref), v42_2 (ref), v15 (ref), v16 (ref), v22 (copy), t3 (copy) ]]
+				v21 = v21 + p1_2
+				if not (v21 > 0.004166666666666667) then
+					return
+				end
+				local Magnitude = v19.Magnitude
+				local Magnitude_2 = (v19 * v21).Magnitude
+				local v12 = workspace:Raycast(v4, v32 * Magnitude_2, v1)
+				local v2 = nil
+				local v33 = nil
+				local v43 = nil
+				local sum_2
+				if v12 then
+					v2 = v12.Instance
+					sum_2 = v12.Position
+					v33 = v12.Normal
+					v43 = v12.Material
+				else
+					sum_2 = v4 + v32 * Magnitude_2
+				end
+				if v162 then
+					local v6 = math.clamp(CurrentCamera.FieldOfView / 70, 0.38, 1.1)
+					local v72 = math.clamp((CurrentCamera.CFrame.Position - sum_2).Magnitude / 200, 0.1, 2.1) * v39 * v6
+					v162.Size = Vector3.new(v72, v72, Magnitude_2)
+					local v8 = CFrame.new(v4, sum_2) * CFrame.new(0, 0, -Magnitude_2 / 2)
+					if v82 < 250 and v18 == 0 then
+						local Unit = (sum_2 - v17).Unit
+						v162.CFrame = (CFrame.new(v17, sum_2) * CFrame.new(0, 0, -Magnitude_2 / 2)):Lerp(v8, v82 / 250)
+					else
+						v162.CFrame = v8
+					end
+				end
+				local v9
+				if v2 then
+					local v102 = math.floor(sum_2.X)
+					local v11 = math.floor(sum_2.Y)
+					local v122 = math.floor(sum_2.Z)
+					local v13_2 = math.floor(v33.X)
+					local v14 = math.floor(v33.Y)
+					local v152 = math.floor(v33.Z)
+					v9 = tostring(v102) .. tostring(v11) .. tostring(v122) .. tostring(v13_2) .. tostring(v14) .. tostring(v152)
+					if t2_2[v9] then
+						sum_2 = sum_2 - v33 * 0.1
+					end
+				else
+					v9 = "nil"
+				end
+				if v12 and not t2_2[v9] then
+					local v163 = FunctionLibraryExtension:FindDeepAncestor(v2, "Model")
+					if v2:FindFirstChild("RealParent") then
+						v163 = v2.RealParent.Value
+					end
+					if v2:GetAttribute("PassThrough", 2) then
+						table.insert(t2, v2)
+						v1.FilterDescendantsInstances = t2
+						return
+					end
+					if v2:GetAttribute("PassThrough", 1) then
+						table.insert(t2, v2)
+						v1.FilterDescendantsInstances = t2
+						return
+					end
+					if v2:GetAttribute("Glass") then
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						table.insert(t2, v2)
+						v1.FilterDescendantsInstances = t2
+						return
+					end
+					if v2.Name == "Terrain" then
+						if v62 == false and v43 == Enum.Material.Water then
+							v62 = true
+							v19 = v19 * 0.15
+							v7 = sum_2
+							v1.IgnoreWater = true
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						elseif if v162 then v3(v19, v33, v43) else false then
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ricochet", true)
+							local v222 = v19
+							local v23_2 = 0.31
+							local v24 = 0.2
+							local Unit = v33.Unit
+							local v25 = v222:Dot(Unit)
+							local v26 = Unit * v25
+							local v27 = v222 - v26
+							local v28
+							if v25 >= 0 then
+								v28 = v222
+							else
+								local v29 = -v26 * v23_2 + v27 * math.clamp(1 - v24, 0, 1)
+								v28 = if v29.Magnitude < 10 then Vector3.new(0, 0, 0) else v29
+							end
+							v19 = v28
+							v18 = v18 + 1
+						else
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+							v20:Disconnect()
+							if not v162 then
+								return
+							end
+							if v162:FindFirstChild("Trail") then
+								task.wait(v162.Trail.Lifetime)
+							end
+							v162:Destroy()
+							return
+						end
+					else
+						if v163:FindFirstChild("Humanoid") then
+							local v30 = v2.CFrame:ToObjectSpace(CFrame.new(sum_2))
+							if Magnitude / v5 > 0.1 and v10 < 3300 then
+								ProjectileInflict:FireServer(v2, v30, v42_2, tick())
+							end
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+							v20:Disconnect()
+							if not v162 then
+								return
+							end
+							if v162:FindFirstChild("Trail") then
+								task.wait(v162.Trail.Lifetime)
+							end
+							v162:Destroy()
+							return
+						end
+						if v163.ClassName == "Model" and (v163.PrimaryPart ~= nil and v163.PrimaryPart:GetAttribute("Health")) then
+							ProjectileInflict:FireServer(v2, v2.CFrame:ToObjectSpace(CFrame.new(sum_2)), v42_2, tick())
+							if v163.Parent.Name ~= "SleepingPlayers" and v33 then
+								VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+							end
+							v20:Disconnect()
+							if not v162 then
+								return
+							end
+							if v162:FindFirstChild("Trail") then
+								task.wait(v162.Trail.Lifetime)
+							end
+							v162:Destroy()
+							return
+						end
+						local v31, v322, v332 = FunctionLibraryExtension:Penetration(v2, sum_2, v32, v15)
+						v15 = v31
+						if v31 > 0 then
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+							VFX.Impact(unpack(v332))
+							v19 = v19 * math.clamp(v31 / v16, 0.5, 1)
+							t2_2[v9] = true
+							sum_2 = v322
+						elseif if v162 then v3(v19, v33, v43) else false then
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ricochet", true)
+							local v37 = v19
+							local v38 = 0.31
+							local v392 = 0.2
+							local Unit = v33.Unit
+							local v40 = v37:Dot(Unit)
+							local v41 = Unit * v40
+							local v422 = v37 - v41
+							local v432
+							if v40 >= 0 then
+								v432 = v37
+							else
+								local v44 = -v41 * v38 + v422 * math.clamp(1 - v392, 0, 1)
+								v432 = if v44.Magnitude < 10 then Vector3.new(0, 0, 0) else v44
+							end
+							v19 = v432
+							v18 = v18 + 1
+						else
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+							v20:Disconnect()
+							if not v162 then
+								return
+							end
+							if v162:FindFirstChild("Trail") then
+								task.wait(v162.Trail.Lifetime)
+							end
+							v162:Destroy()
+							return
+						end
+					end
+				else
+					v19 = v19 + Vector3.new(0, -70, 0) * v21
+				end
+				v4 = sum_2
+				v32 = v19.Unit
+				v82 = v82 + Magnitude_2
+				if v82 > 4000 or (tick() - v22 > 60 or v19 == Vector3.new(0, 0, 0)) then
+					v20:Disconnect()
+					if not v162 then
+						return
+					end
+					if v162:FindFirstChild("Trail") then
+						task.wait(v162.Trail.Lifetime)
+					end
+					v162:Destroy()
+				else
+					table.insert(t3, v21)
+					v21 = 0
+				end
+			end
+			v20 = RunService.RenderStepped:Connect(onStep)
+		end
+		if v13_2 == nil then
+			coroutine.wrap(fireBullet)()
+		else
+			for k = 1, v13_2 do
+				coroutine.wrap(fireBullet)()
+			end
+		end
+		return sum_2 / 200, sum_2_2 / 200, v20, v17
+	end
+	return t
+end
+for i = nil, nil do
+	return
+end
+for j = nil, nil do
+	break
+end
+_ = function(p1_2, p2_2, p3_2, p4_2, p5_2) --[[ bounceVelocity | Line: 264 ]]
+	local Unit = p2_2.Unit
+	local v1 = p1_2:Dot(Unit)
+	local v2 = Unit * v1
+	if v1 >= 0 then
+		return p1_2
+	end
+	local v4 = -v2 * p3_2 + (p1_2 - v2) * math.clamp(1 - p4_2, 0, 1)
+	if v4.Magnitude < p5_2 then
+		return Vector3.new(0, 0, 0)
+	else
+		return v4
+	end
+end
+v3 = function(p1_2, p2_2, p3_2) --[[ willRicochet | Line: 299 ]]
+	if p1_2.Magnitude < 1e-6 then
+		return false
+	end
+	local v5 = math.deg((math.acos((math.clamp(math.abs((p1_2.Unit:Dot(p2_2.Unit))), -1, 1)))))
+	local v6
+	if p3_2 == Enum.Material.Metal then
+		v6 = 65
+	elseif p3_2 == Enum.Material.Asphalt or (p3_2 == Enum.Material.Rock or (p3_2 == Enum.Material.Slate or (p3_2 == Enum.Material.Basalt or p3_2 == Enum.Material.Concrete))) then
+		v6 = 70
+	else
+		if p3_2 ~= Enum.Material.Ice and p3_2 ~= Enum.Material.Glacier then
+			return false
+		end
+		v6 = 71
+	end
+	local v7 = 89
+	if v5 < v6 then
+		return false
+	end
+	if v7 <= v5 then
+		return true
+	end
+	local v8 = math.clamp((v5 - v6) / (v7 - v6), 0, 1)
+	local v10 = math.clamp((p1_2.Magnitude - 80) / 220, 0, 1)
+	return math.random() < v8 * v8 * (3 - v8 * 2) * v10
+end
+function t.CreateBullet(p1_2, p2_2, p3_2, p4_2, p5_2, p6_2, p7_2, p8_2, p9_2) --[[ CreateBullet | Line: 359 | Upvalues: LocalPlayer (copy), RangedWeapons (copy), ReplicatedStorage (copy), v1 (copy), SoundHandler (copy), VFX_2 (copy), Debris (copy), devideNumberSequence (copy), v2 (copy), FunctionLibraryExtension (copy), FireProjectile (copy), VisualProjectile (copy), VFX (copy), v3 (copy), ProjectileInflict (copy), RunService (copy) ]]
+	local Character = LocalPlayer.Character
+	local HumanoidRootPart = Character.HumanoidRootPart
+	local CurrentCamera = workspace.CurrentCamera
+	if not Character:FindFirstChild(p2_2.Name) then
+		return
+	end
+	local v12
+	if p4_2.Item.Attachments:FindFirstChild("Front") then
+		v12 = p4_2.Item.Attachments.Front.Barrel
+		local Barrel = p3_2.Attachments.Front.Barrel
+	else
+		v12 = p4_2.Item.Barrel
+		local Barrel = p3_2.Barrel
+	end
+	local ItemRoot = p3_2.ItemRoot
+	local v22 = RangedWeapons:FindFirstChild(p2_2.Name)
+	local v32 = nil
+	local v4 = p2_2:GetAttribute("Skin")
+	if v4 then
+		local v5 = ReplicatedStorage.Skins:FindFirstChild(p2_2.Name):FindFirstChild(v4)
+		if v5 then
+			v32 = v5:FindFirstChild("SpecialProperties")
+		end
+	end
+	local v6 = v1.Status.GameplayVariables:GetAttribute("EquipId")
+	local v7 = ReplicatedStorage.AmmoTypes:FindFirstChild(p7_2)
+	local v8 = v32 and v32:GetAttribute("TracerColor") or v22:GetAttribute("ProjectileColor")
+	v22:GetAttribute("BulletMaterial")
+	local v9 = v22:GetAttribute("MuzzleEffect")
+	local v10 = v7:GetAttribute("MuzzleVelocity")
+	local v11 = v7:GetAttribute("Tracer")
+	v22:GetAttribute("RecoilRecoveryTimeMod")
+	v22:GetAttribute("ZeroDistance")
+	local v122 = v7:GetAttribute("AccuracyDeviation")
+	local v13_2 = v7:GetAttribute("Pellets")
+	local v14 = v7:GetAttribute("Damage")
+	local v15 = v7:GetAttribute("ArmorPen")
+	local v16 = v15
+	if v13_2 and (v13_2 > 1 and (not v122 or v122 <= 0)) then
+		v122 = 50
+	end
+	local v17
+	if p9_2 and v22:FindFirstChild("RecoilPattern") then
+		local _ = #v22.RecoilPattern:GetChildren()
+		v17 = if p9_2 == 1 then {
+	x = {
+		Value = v22.RecoilPattern["1"].x.Value
+	},
+	y = {
+		Value = v22.RecoilPattern["1"].y.Value
+	}
+} else v22.RecoilPattern:FindFirstChild((tostring(p9_2)))
+	else
+		v17 = {
+			x = {
+				Value = math.random(-5, 5) * 0.01
+			},
+			y = {
+				Value = math.random(5, 10) * 0.01
+			}
+		}
+	end
+	local v19 = if v1.Status.GameplayVariables:GetAttribute("Stance") == "Crouching" then true else false
+	local v20 = p2_2.Value.ItemProperties.Tool:GetAttribute("MuzzleDevice") or "Default"
+	local v21 = v7:GetAttribute("RecoilStrength") * (HumanoidRootPart:GetAttribute("Recoil") or 1)
+	local sum_2 = v19 and v21 * 0.9 or v21
+	local sum_2_2 = v19 and v21 * 0.9 or v21
+	if p2_2.Value.ItemProperties.Tool:GetAttribute("Recoil") then
+		sum_2 = sum_2 + p2_2.Value.ItemProperties.Tool:GetAttribute("Recoil")
+		sum_2_2 = sum_2_2 + p2_2.Value.ItemProperties.Tool:GetAttribute("Recoil")
+	end
+	local Attachments = p2_2:FindFirstChild("Attachments")
+	if Attachments then
+		local v222 = Attachments:GetChildren()
+		for i = 1, #v222 do
+			local v23_2 = v222[i]
+			if v23_2 and (v23_2.Value.ItemProperties:FindFirstChild("Attachment") and (not v23_2:GetAttribute("Durability") or v23_2:GetAttribute("Durability") > 0)) then
+				local Attachment = v23_2.Value.ItemProperties.Attachment
+				local v24 = Attachment:GetAttribute("Recoil")
+				if v24 then
+					sum_2 = sum_2 + v24 * Attachment:GetAttribute("HRecoilMod")
+					sum_2_2 = sum_2_2 + v24 * Attachment:GetAttribute("VRecoilMod")
+				end
+				local v25 = Attachment:GetAttribute("MuzzleDevice")
+				if v25 then
+					if p4_2.Item.Attachments.Muzzle:FindFirstChild("BarrelExtension") then
+						v12 = p4_2.Item.Attachments.Muzzle:FindFirstChild("BarrelExtension")
+						p3_2.Attachments.Muzzle:FindFirstChild("BarrelExtension")
+						v20 = v25
+						continue
+					end
+					v20 = v25
+				end
+			end
+		end
+	end
+	if v20 == "Suppressor" then
+		SoundHandler:Play(ItemRoot.Sounds.FireSoundSupressed, true)
+	else
+		SoundHandler:Play(ItemRoot.Sounds.FireSound, true)
+	end
+	if v9 == true then
+		local v26 = if v32 then v32:GetAttribute("MuzzleEffect") else v32
+		local v27 = v26 and VFX_2.MuzzleEffects.Override:FindFirstChild(v26) or VFX_2.MuzzleEffects
+		local v29 = (v27:FindFirstChild(v20) or VFX_2.MuzzleEffects:FindFirstChild(v20)):GetChildren()
+		local v30 = v29[math.random(1, #v29)]
+		local v31 = v30.Particles:GetChildren()
+		if v30:FindFirstChild("MuzzleLight") then
+			local v322 = v30.MuzzleLight:Clone()
+			local v33_2 = v322.Range + math.random(-2, 2) / 2
+			v322.Range = math.clamp(v33_2, 0, 50)
+			v322.Enabled = true
+			Debris:AddItem(v322, 0.1)
+			v322.Parent = v12
+		end
+		for j = 1, #v31 do
+			if v31[j].className == "ParticleEmitter" then
+				local v34 = v31[j]:Clone()
+				local v35 = v34:GetAttribute("EmitCount") or 1
+				local v36 = math.clamp(v14 / 45 / 2.4, 0, 0.6)
+				if v13_2 then
+					v36 = math.clamp(v14 * v13_2 / 45 / 2.4, 0, 0.6)
+				end
+				local v38 = math.clamp(v36, 1, 10)
+				v34.Lifetime = NumberRange.new(v34.Lifetime.Min * v38, v34.Lifetime.Max * v38)
+				v34.Size = devideNumberSequence(v34.Size, v36)
+				v34.Parent = v12
+				v34:Emit(v35)
+				Debris:AddItem(v34, v34.Lifetime.Max)
+			end
+		end
+	end
+	local p = HumanoidRootPart.CFrame.p
+	local LookVector = p5_2.CFrame.LookVector
+	local v39 = math.clamp(v10 / 2400, 0.7, 1.2)
+	local v40 = 0
+	local v41 = ""
+	local v42_2 = 0
+	local v43 = false
+	local function fireBullet() --[[ fireBullet | Line: 546 | Upvalues: Character (copy), p4_2 (copy), v2 (ref), LookVector (copy), FunctionLibraryExtension (ref), LocalPlayer (ref), v10 (copy), v122 (ref), v40 (ref), v42_2 (ref), v41 (ref), FireProjectile (ref), v6 (copy), VisualProjectile (ref), v13_2 (copy), v43 (ref), v11 (copy), VFX_2 (ref), v8 (copy), Debris (ref), v12 (ref), CurrentCamera (copy), v39 (copy), VFX (ref), v3 (ref), ProjectileInflict (ref), v15 (ref), v16 (copy), RunService (ref) ]]
+		local v1 = RaycastParams.new()
+		v1.FilterType = Enum.RaycastFilterType.Exclude
+		local t2 = { Character, p4_2, v2 }
+		local t2_2 = {}
+		v1.FilterDescendantsInstances = t2
+		v1.IgnoreWater = false
+		v1.CollisionGroup = "WeaponRay"
+		local v22 = tick()
+		local v32 = LookVector
+		local v4 = FunctionLibraryExtension:GetEstimatedCameraPosition(LocalPlayer)
+		local v5 = v10
+		local v62 = false
+		local v7 = Vector3.new()
+		local v82 = 0
+		local v9 = v4 + LookVector * 1000
+		if v122 then
+			local v102 = 6.283185307179586 * math.random()
+			local v112 = math.random(-v122, v122)
+			local v123 = v112 * math.cos(v102)
+			local v132 = v112 * math.sin(v102)
+			v32 = (v9 + Vector3.new(v123, math.random(-v122, v122), v132) - v4).Unit
+		end
+		v40 = v40 + 1
+		if v40 == 1 then
+			v42_2 = math.random(-100000, 100000)
+			v41 = tostring(game.Players.LocalPlayer.UserId)
+			coroutine.wrap(function() --[[ Line: 623 | Upvalues: FireProjectile (ref), v32 (ref), v42_2 (ref), v6 (ref) ]]
+				if FireProjectile:InvokeServer(v32, v42_2, tick()) then
+					return
+				end
+				script.Parent.Binds.AdjustBullets:Fire(v6, 1)
+			end)()
+		elseif v40 > 1 then
+			VisualProjectile:FireServer(v32, v42_2)
+		end
+		if v13_2 then
+			if not v43 and v40 > math.floor(v13_2 * 0.2) then
+				v43 = true
+			end
+		else
+			v43 = true
+		end
+		local v162, v17
+		if v11 then
+			v162 = VFX_2.MuzzleEffects.Tracer:Clone()
+			v162.Name = v41
+			v162.Color = v8
+			Debris:AddItem(v162, 10)
+			v162.Position = Vector3.new(0, -100, 0)
+			v162.Parent = game.Workspace.NoCollision.Effects
+			v17 = v12.Position
+		else
+			v162 = nil
+			v17 = nil
+		end
+		local t3 = {}
+		local v18 = 0
+		local function getFriction(p1_2) --[[ getFriction | Line: 677 ]]
+			return 0.2
+		end
+		local function getRestitution(p1_2) --[[ getRestitution | Line: 681 ]]
+			return 0.31
+		end
+		local v19 = v5 * v32
+		local v20 = nil
+		local v21 = 0
+		local function terminate() --[[ terminate | Line: 689 | Upvalues: v20 (ref), v162 (ref) ]]
+			v20:Disconnect()
+			if not v162 then
+				return
+			end
+			if v162:FindFirstChild("Trail") then
+				task.wait(v162.Trail.Lifetime)
+			end
+			v162:Destroy()
+		end
+		local function onStep(p1_2) --[[ onStep | Line: 700 | Upvalues: v21 (ref), v19 (ref), v4 (ref), v32 (ref), v1 (copy), v162 (ref), CurrentCamera (ref), v39 (ref), v82 (ref), v18 (ref), v17 (ref), t2_2 (copy), FunctionLibraryExtension (ref), t2 (copy), VFX (ref), v62 (ref), v7 (ref), v3 (ref), v20 (ref), v5 (copy), v10 (ref), ProjectileInflict (ref), v42_2 (ref), v15 (ref), v16 (ref), v22 (copy), t3 (copy) ]]
+			v21 = v21 + p1_2
+			if not (v21 > 0.004166666666666667) then
+				return
+			end
+			local Magnitude = v19.Magnitude
+			local Magnitude_2 = (v19 * v21).Magnitude
+			local v12 = workspace:Raycast(v4, v32 * Magnitude_2, v1)
+			local v2 = nil
+			local v33 = nil
+			local v43 = nil
+			local sum_2
+			if v12 then
+				v2 = v12.Instance
+				sum_2 = v12.Position
+				v33 = v12.Normal
+				v43 = v12.Material
+			else
+				sum_2 = v4 + v32 * Magnitude_2
+			end
+			if v162 then
+				local v6 = math.clamp(CurrentCamera.FieldOfView / 70, 0.38, 1.1)
+				local v72 = math.clamp((CurrentCamera.CFrame.Position - sum_2).Magnitude / 200, 0.1, 2.1) * v39 * v6
+				v162.Size = Vector3.new(v72, v72, Magnitude_2)
+				local v8 = CFrame.new(v4, sum_2) * CFrame.new(0, 0, -Magnitude_2 / 2)
+				if v82 < 250 and v18 == 0 then
+					local Unit = (sum_2 - v17).Unit
+					v162.CFrame = (CFrame.new(v17, sum_2) * CFrame.new(0, 0, -Magnitude_2 / 2)):Lerp(v8, v82 / 250)
+				else
+					v162.CFrame = v8
+				end
+			end
+			local v9
+			if v2 then
+				local v102 = math.floor(sum_2.X)
+				local v11 = math.floor(sum_2.Y)
+				local v122 = math.floor(sum_2.Z)
+				local v13_2 = math.floor(v33.X)
+				local v14 = math.floor(v33.Y)
+				local v152 = math.floor(v33.Z)
+				v9 = tostring(v102) .. tostring(v11) .. tostring(v122) .. tostring(v13_2) .. tostring(v14) .. tostring(v152)
+				if t2_2[v9] then
+					sum_2 = sum_2 - v33 * 0.1
+				end
+			else
+				v9 = "nil"
+			end
+			if v12 and not t2_2[v9] then
+				local v163 = FunctionLibraryExtension:FindDeepAncestor(v2, "Model")
+				if v2:FindFirstChild("RealParent") then
+					v163 = v2.RealParent.Value
+				end
+				if v2:GetAttribute("PassThrough", 2) then
+					table.insert(t2, v2)
+					v1.FilterDescendantsInstances = t2
+					return
+				end
+				if v2:GetAttribute("PassThrough", 1) then
+					table.insert(t2, v2)
+					v1.FilterDescendantsInstances = t2
+					return
+				end
+				if v2:GetAttribute("Glass") then
+					VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+					table.insert(t2, v2)
+					v1.FilterDescendantsInstances = t2
+					return
+				end
+				if v2.Name == "Terrain" then
+					if v62 == false and v43 == Enum.Material.Water then
+						v62 = true
+						v19 = v19 * 0.15
+						v7 = sum_2
+						v1.IgnoreWater = true
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+					elseif if v162 then v3(v19, v33, v43) else false then
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ricochet", true)
+						local v222 = v19
+						local v23_2 = 0.31
+						local v24 = 0.2
+						local Unit = v33.Unit
+						local v25 = v222:Dot(Unit)
+						local v26 = Unit * v25
+						local v27 = v222 - v26
+						local v28
+						if v25 >= 0 then
+							v28 = v222
+						else
+							local v29 = -v26 * v23_2 + v27 * math.clamp(1 - v24, 0, 1)
+							v28 = if v29.Magnitude < 10 then Vector3.new(0, 0, 0) else v29
+						end
+						v19 = v28
+						v18 = v18 + 1
+					else
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						v20:Disconnect()
+						if not v162 then
+							return
+						end
+						if v162:FindFirstChild("Trail") then
+							task.wait(v162.Trail.Lifetime)
+						end
+						v162:Destroy()
+						return
+					end
+				else
+					if v163:FindFirstChild("Humanoid") then
+						local v30 = v2.CFrame:ToObjectSpace(CFrame.new(sum_2))
+						if Magnitude / v5 > 0.1 and v10 < 3300 then
+							ProjectileInflict:FireServer(v2, v30, v42_2, tick())
+						end
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						v20:Disconnect()
+						if not v162 then
+							return
+						end
+						if v162:FindFirstChild("Trail") then
+							task.wait(v162.Trail.Lifetime)
+						end
+						v162:Destroy()
+						return
+					end
+					if v163.ClassName == "Model" and (v163.PrimaryPart ~= nil and v163.PrimaryPart:GetAttribute("Health")) then
+						ProjectileInflict:FireServer(v2, v2.CFrame:ToObjectSpace(CFrame.new(sum_2)), v42_2, tick())
+						if v163.Parent.Name ~= "SleepingPlayers" and v33 then
+							VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						end
+						v20:Disconnect()
+						if not v162 then
+							return
+						end
+						if v162:FindFirstChild("Trail") then
+							task.wait(v162.Trail.Lifetime)
+						end
+						v162:Destroy()
+						return
+					end
+					local v31, v322, v332 = FunctionLibraryExtension:Penetration(v2, sum_2, v32, v15)
+					v15 = v31
+					if v31 > 0 then
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						VFX.Impact(unpack(v332))
+						v19 = v19 * math.clamp(v31 / v16, 0.5, 1)
+						t2_2[v9] = true
+						sum_2 = v322
+					elseif if v162 then v3(v19, v33, v43) else false then
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ricochet", true)
+						local v37 = v19
+						local v38 = 0.31
+						local v392 = 0.2
+						local Unit = v33.Unit
+						local v40 = v37:Dot(Unit)
+						local v41 = Unit * v40
+						local v422 = v37 - v41
+						local v432
+						if v40 >= 0 then
+							v432 = v37
+						else
+							local v44 = -v41 * v38 + v422 * math.clamp(1 - v392, 0, 1)
+							v432 = if v44.Magnitude < 10 then Vector3.new(0, 0, 0) else v44
+						end
+						v19 = v432
+						v18 = v18 + 1
+					else
+						VFX.Impact(v2, sum_2, v33, v43, v32, "Ranged", true)
+						v20:Disconnect()
+						if not v162 then
+							return
+						end
+						if v162:FindFirstChild("Trail") then
+							task.wait(v162.Trail.Lifetime)
+						end
+						v162:Destroy()
+						return
+					end
+				end
+			else
+				v19 = v19 + Vector3.new(0, -70, 0) * v21
+			end
+			v4 = sum_2
+			v32 = v19.Unit
+			v82 = v82 + Magnitude_2
+			if v82 > 4000 or (tick() - v22 > 60 or v19 == Vector3.new(0, 0, 0)) then
+				v20:Disconnect()
+				if not v162 then
+					return
+				end
+				if v162:FindFirstChild("Trail") then
+					task.wait(v162.Trail.Lifetime)
+				end
+				v162:Destroy()
+			else
+				table.insert(t3, v21)
+				v21 = 0
+			end
+		end
+		v20 = RunService.RenderStepped:Connect(onStep)
+	end
+	if v13_2 == nil then
+		coroutine.wrap(fireBullet)()
+	else
+		for k = 1, v13_2 do
+			coroutine.wrap(fireBullet)()
+		end
+	end
+	return sum_2 / 200, sum_2_2 / 200, v20, v17
+end
+return t
